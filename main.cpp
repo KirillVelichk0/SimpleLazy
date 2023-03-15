@@ -24,7 +24,16 @@ private:
     template <class... Types>
     std::function<void()> InitorGen(Types &&...initData)
     {
-        return [this, ... args = std::forward<Types>(initData)]() mutable
+        constexpr bool isAllRval {(std::is_rvalue_reference_v<Types> && ...)};
+        if constexpr(isAllRval){
+            return [this, ... args = std::move<Types>(initData)]() mutable
+        {
+            this->data.resize(sizeof(T));
+            new (data.data()) T(std::forward<Types>(args)...);
+            this->isInited = true;
+        };
+        }
+        return [this, ... args = initData]() mutable
         {
             this->data.resize(sizeof(T));
             new (data.data()) T(std::forward<Types>(args)...);
